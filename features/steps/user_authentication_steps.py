@@ -5,6 +5,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 
+# Teste de registo
 @given("a new user")
 def step_given_new_user(context):
     context.driver = webdriver.Chrome()
@@ -70,6 +71,7 @@ def step_impl(context):
     context.driver.quit()
 
 
+# Teste de login
 @given("a registered user")
 def step_given_new_user(context):
     context.driver = webdriver.Chrome()
@@ -78,6 +80,13 @@ def step_given_new_user(context):
 @when("they enter valid credentials (username and password)")
 def step_impl(context):
     wait = WebDriverWait(context.driver, 10)
+
+    button = wait.until(
+        EC.element_to_be_clickable(
+            (By.XPATH, "//*[@id='root']/div[2]/div/div/div[3]/div/a/button")
+        )
+    )
+    button.click()
 
     # Aguarda que os elementos estejam visíveis e clicáveis
     username_input = wait.until(EC.element_to_be_clickable((By.NAME, "username")))
@@ -114,4 +123,49 @@ def step_impl(context):
         )
     )
     assert navbar_welcome.text == "Welcome user test"
+    context.driver.quit()
+
+
+# Teste de logout
+@given("a logged-in user")
+def step_given_logged_in_user(context):
+    context.driver = webdriver.Chrome()
+    context.driver.get("http://localhost:8080/")
+
+    wait = WebDriverWait(context.driver, 10)
+    button = wait.until(
+        EC.element_to_be_clickable(
+            (By.XPATH, "//*[@id='root']/div[2]/div/div/div[3]/div/a/button")
+        )
+    )
+    button.click()
+
+    # Aguarda que os elementos estejam visíveis e clicáveis
+    username_input = wait.until(EC.element_to_be_clickable((By.NAME, "username")))
+    password_input = wait.until(EC.element_to_be_clickable((By.NAME, "password")))
+
+    username_input.send_keys("usertest")
+    password_input.send_keys("Qawsed-12")
+
+    # Clique no botão de login
+    sign_in_button = wait.until(
+        EC.element_to_be_clickable((By.NAME, "signInSubmitButton"))
+    )
+    sign_in_button.click()
+
+
+@when('they select the "Logout" button')
+def step_when_select_logout(context):
+    wait = WebDriverWait(context.driver, 10)
+    logout_button = wait.until(
+        EC.element_to_be_clickable(
+            (By.XPATH, "//*[@id='root']/div[2]/nav/div/div/div/div/button")
+        )
+    )
+    logout_button.click()
+
+
+@then("they should be logged out successfully")
+def step_impl(context):
+    assert context.driver.current_url == "http://localhost:8080/"
     context.driver.quit()
