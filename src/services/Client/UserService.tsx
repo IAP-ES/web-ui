@@ -7,6 +7,9 @@ const UserService = {
   async signin(code: string) {
     return client.post("/signin", { code });
   },
+  async logout() {
+    return client.get("/logout");
+  },
   async getUser() {
     return client.get("/me");
   },

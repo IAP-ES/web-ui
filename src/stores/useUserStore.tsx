@@ -1,7 +1,6 @@
 import { create } from "zustand";
 import { UserResponse } from "@/lib/types";
-
-//alterar o logout depois
+import { NavigateFunction } from "react-router-dom";
 
 interface UserState {
   token: string;
@@ -15,6 +14,7 @@ interface UserState {
 
 type UserActions = {
   login: (token: string) => void;
+  logout: (navigate: NavigateFunction) => void;
   setUserInformation: (data: UserResponse) => void;
 };
 
@@ -39,5 +39,17 @@ export const useUserStore = create<UserState & UserActions>((set) => ({
       id: data.id,
       updatedAt: data.updated_at,
     });
+  },
+  logout: (navigate: NavigateFunction) => {
+    set({
+      token: "",
+      givenName: "",
+      email: "",
+      familyName: "",
+      username: "",
+      id: "",
+      updatedAt: "",
+    });
+    navigate("/");
   },
 }));

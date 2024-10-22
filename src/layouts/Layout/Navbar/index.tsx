@@ -1,7 +1,37 @@
 import { useUserStore } from "@/stores/useUserStore";
-
+import { Button } from "@/components/ui/button";
+import { useMutation } from "@tanstack/react-query";
+import { UserService } from "@/services/Client/UserService";
+import { useNavigate } from "react-router-dom";
 export default function Navbar() {
-  const { token, givenName, familyName } = useUserStore();
+  const {
+    token,
+    givenName,
+    familyName,
+    logout: zustandLogout,
+  } = useUserStore();
+  const navigate = useNavigate();
+
+  const logout = async () => {
+    const response = await UserService.logout();
+    return response.data;
+  };
+
+  const logoutMutation = useMutation({
+    mutationFn: logout,
+    onSuccess: (data) => {
+      console.log(data);
+      zustandLogout(navigate);
+      window.location.reload();
+    },
+    onError: (error) => {
+      console.error("Logout falhou:", error);
+    },
+  });
+
+  const handleLogout = async () => {
+    logoutMutation.mutate();
+  };
 
   return (
     <nav
@@ -16,6 +46,13 @@ export default function Navbar() {
                 <div className="hidden md:block text-primary mr-2 text-lg font-bold">
                   Welcome {givenName} {familyName}
                 </div>
+                <Button
+                  onClick={handleLogout}
+                  variant="outline"
+                  className="mr-2"
+                >
+                  Logout
+                </Button>
               </div>
             )}
           </div>
