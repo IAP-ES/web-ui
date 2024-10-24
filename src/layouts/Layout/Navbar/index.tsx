@@ -39,18 +39,14 @@ export default function Navbar() {
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center transition-all duration-300 ease-linear h-28">
+        <div className="flex justify-between items-center transition-all duration-300 ease-linear pt-2">
           <div className="flex-1 flex items-center justify-end">
             {token && (
               <div className="flex items-center">
-                <div className="hidden md:block text-primary mr-2 text-lg font-bold">
+                <div className="hidden md:block text-black mr-2 text-lg font-bold">
                   Welcome {givenName} {familyName}
                 </div>
-                <Button
-                  onClick={handleLogout}
-                  variant="outline"
-                  className="mr-2"
-                >
+                <Button onClick={handleLogout} variant="" className="mr-2 ml-6">
                   Logout
                 </Button>
               </div>
