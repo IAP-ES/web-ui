@@ -5,13 +5,11 @@ import { useUserStore } from "@/stores/useUserStore";
 import { UserService } from "@/services/Client/UserService";
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -29,7 +27,6 @@ import { X } from "lucide-react";
 import { TaskResponse } from "@/lib/types";
 import { TaskService } from "@/services/Client/TaskService";
 import { useMutation } from "@tanstack/react-query";
-import { title } from "process";
 
 type Task = {
   id: string;
