@@ -1,13 +1,13 @@
-import { Outlet } from 'react-router-dom'
-import Navbar from '../Layout/Navbar'
+import { Outlet } from "react-router-dom";
+import Navbar from "../Layout/Navbar";
 
 const CleanLayout = () => {
-    return (
-        <div>
-            <Navbar />
-            <Outlet />
-        </div>
-    )
-}
+  return (
+    <div>
+      <Navbar />
+      <Outlet />
+    </div>
+  );
+};
 
-export { CleanLayout }
+export { CleanLayout };

@@ -3,6 +3,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+import time
 
 
 # Teste de registo
@@ -167,5 +168,6 @@ def step_when_select_logout(context):
 
 @then("they should be logged out successfully")
 def step_impl(context):
+    time.sleep(2)
     assert context.driver.current_url == "http://localhost:8080/"
     context.driver.quit()

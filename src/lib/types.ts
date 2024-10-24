@@ -6,3 +6,11 @@ export interface UserResponse {
   id: string;
   updatedAt: string;
 }
+
+export interface TaskResponse {
+  id: string;
+  title: string;
+  description: string;
+  status: "todo" | "doing" | "done";
+  createdAt: string;
+}

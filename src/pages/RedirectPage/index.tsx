@@ -25,7 +25,7 @@ export default function RedirectPage() {
     mutationFn: signin,
     onSuccess: (data) => {
       useUserStore.getState().login(data.token.token);
-      navigate("/maintenance"); // Redireciona após sucesso no login
+      navigate("/tasks"); // Redireciona após sucesso no login
       // useUserStore.getState().setUserInformation(data.user);
     },
     onError: (error) => {
