@@ -23,10 +23,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { X } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { TaskResponse } from "@/lib/types";
 import { TaskService } from "@/services/Client/TaskService";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 type Task = {
   id: string;
@@ -41,6 +41,7 @@ type NewTask = {
 };
 
 export default function TasksPage() {
+  const queryClient = useQueryClient();
   const { token, setUserInformation } = useUserStore();
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
@@ -148,10 +149,12 @@ export default function TasksPage() {
     mutationFn: addTask,
     onSuccess: (data) => {
       console.log("Task adicionada:", data);
-      window.location.reload();
+      // Invalida a query para que as tarefas sejam buscadas novamente
+      queryClient.invalidateQueries(["tasks"]);
+      setIsAddTaskModalOpen(false); // Fecha o modal
     },
     onError: (error) => {
-      console.error("Logout falhou:", error);
+      console.error("Erro ao adicionar tarefa:", error);
     },
   });
 
@@ -159,10 +162,11 @@ export default function TasksPage() {
     mutationFn: deleteTask,
     onSuccess: (data) => {
       console.log("Task deletada:", data);
-      window.location.reload();
+      // Invalida a query para que as tarefas sejam buscadas novamente
+      queryClient.invalidateQueries(["tasks"]);
     },
     onError: (error) => {
-      console.error("Logout falhou:", error);
+      console.error("Erro ao deletar tarefa:", error);
     },
   });
 
@@ -170,10 +174,12 @@ export default function TasksPage() {
     mutationFn: updateTask,
     onSuccess: (data) => {
       console.log("Task atualizada:", data);
-      window.location.reload();
+      // Invalida a query para que as tarefas sejam buscadas novamente
+      queryClient.invalidateQueries(["tasks"]);
+      closeModal(); // Fecha o modal
     },
     onError: (error) => {
-      console.error("Logout falhou:", error);
+      console.error("Erro ao atualizar tarefa:", error);
     },
   });
 
@@ -211,10 +217,13 @@ export default function TasksPage() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="absolute top-2 right-2 h-6 w-6"
-                  onClick={(e) => handleDeleteTask(task.id, e)}
+                  className="absolute top-2 right-2 h-6 w-6 text-red-600"
+                  onClick={(e) => {
+                    e.stopPropagation(); // Previne que o clique no botão abra o modal da tarefa
+                    handleDeleteTask(task.id);
+                  }}
                 >
-                  <X className="h-4 w-4" />
+                  <Trash2 className="h-4 w-4" />
                 </Button>
               </CardContent>
             </Card>
