@@ -12,5 +12,7 @@ export interface TaskResponse {
   title: string;
   description: string;
   status: "todo" | "doing" | "done";
+  priority: "low" | "mid" | "high";
+  deadline: Date | null;
   createdAt: string;
 }
