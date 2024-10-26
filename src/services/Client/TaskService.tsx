@@ -7,7 +7,7 @@ const TaskService = {
   async createTask(
     title: string,
     description: string,
-    priority: string,
+    priority: number,
     deadline: string,
     user_id: string
   ) {
@@ -30,9 +30,10 @@ const TaskService = {
     title: string,
     description: string,
     status: string,
-    priority: string,
+    priority: number,
     deadline: string
   ) {
+    console.log("deadline", deadline);
     return client.put(`/tasks/${id}`, {
       title,
       description,

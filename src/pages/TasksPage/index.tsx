@@ -36,20 +36,21 @@ import {
 import { toast } from "@/hooks/use-toast";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import { set } from "react-datepicker/dist/date_utils";
 
 type Task = {
   id: string;
   title: string;
   description: string;
   status: string;
-  priority: string;
+  priority: number;
   deadline: Date | null;
 };
 
 type NewTask = {
   title: string;
   description: string;
-  priority: string;
+  priority: number;
   deadline: Date | null;
 };
 
@@ -61,7 +62,7 @@ export default function Component() {
   const [newTask, setNewTask] = useState<NewTask>({
     title: "",
     description: "",
-    priority: "",
+    priority: 0,
     deadline: null,
   });
   const [updatedTask, setUpdatedTask] = useState<Task>({
@@ -69,7 +70,7 @@ export default function Component() {
     title: "",
     description: "",
     status: "",
-    priority: "",
+    priority: 0,
     deadline: null,
   });
 
@@ -121,7 +122,7 @@ export default function Component() {
       title: "",
       description: "",
       status: "",
-      priority: "",
+      priority: 0,
       deadline: null,
     });
   };
@@ -156,13 +157,14 @@ export default function Component() {
   };
 
   const updateTask = async (task: Task) => {
+    console.log("task", task.deadline);
     const response = await TaskService.updateTask(
       task.id,
       task.title,
       task.description,
       task.status,
       task.priority,
-      task.deadline?.toISOString().split("T")[0]
+      task.deadline ? task.deadline.toISOString().split("T")[0] : null
     );
     return response.data;
   };
@@ -175,7 +177,7 @@ export default function Component() {
       setNewTask({
         title: "",
         description: "",
-        priority: "",
+        priority: 0,
         deadline: null,
       });
     },
@@ -259,11 +261,12 @@ export default function Component() {
     const taskToUpdate = tasks.find((task) => task.id === draggableId);
     if (taskToUpdate) {
       const updatedTaskData = { ...taskToUpdate, status: newStatus };
-      updateTaskMutation.mutate(updatedTaskData);
-
-      if (selectedTask && selectedTask.id === draggableId) {
-        setUpdatedTask(updatedTaskData);
-      }
+      updateTaskMutation.mutate({
+        ...updatedTaskData,
+        deadline: updatedTaskData.deadline
+          ? new Date(updatedTaskData.deadline)
+          : null,
+      });
     }
   };
 
@@ -310,15 +313,19 @@ export default function Component() {
                           <Badge
                             style={{
                               backgroundColor:
-                                task.priority === "high"
+                                task.priority == 3
                                   ? "#ff4d4f" // Vermelho
-                                  : task.priority === "mid"
+                                  : task.priority == 2
                                   ? "#ffc107" // Amarelo
                                   : "#28a745", // Verde
                               color: "white", // Definindo a cor do texto como branco para high e low
                             }}
                           >
-                            {task.priority}
+                            {task.priority == 1
+                              ? "Low"
+                              : task.priority == 2
+                              ? "Medium"
+                              : "High"}
                           </Badge>
                         </div>
                         <Button
@@ -355,7 +362,7 @@ export default function Component() {
             setNewTask({
               title: "",
               description: "",
-              priority: "",
+              priority: 0,
               deadline: null,
             });
           }}
@@ -402,7 +409,7 @@ export default function Component() {
               <div>
                 <Label htmlFor="priority">Priority</Label>
                 <Select
-                  onValueChange={(value: string) =>
+                  onValueChange={(value: number) =>
                     setUpdatedTask({ ...updatedTask, priority: value })
                   }
                   value={updatedTask.priority}
@@ -411,9 +418,9 @@ export default function Component() {
                     <SelectValue placeholder="Change priority" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="mid">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="1">Low</SelectItem>
+                    <SelectItem value="2">Medium</SelectItem>
+                    <SelectItem value="3">High</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -494,7 +501,7 @@ export default function Component() {
               <div>
                 <Label htmlFor="priority">Priority</Label>
                 <Select
-                  onValueChange={(value: string) =>
+                  onValueChange={(value: number) =>
                     setNewTask({ ...newTask, priority: value })
                   }
                   value={newTask.priority}
@@ -503,9 +510,9 @@ export default function Component() {
                     <SelectValue placeholder="Change priority" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="mid">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="1">Low</SelectItem>
+                    <SelectItem value="2">Medium</SelectItem>
+                    <SelectItem value="3">High</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
