@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUserStore } from "@/stores/useUserStore";
 import { UserService } from "@/services/Client/UserService";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
@@ -36,7 +36,6 @@ import {
 import { toast } from "@/hooks/use-toast";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { set } from "react-datepicker/dist/date_utils";
 
 type Task = {
   id: string;
@@ -74,6 +73,35 @@ export default function Component() {
     deadline: null,
   });
 
+  const [sortBy, setSortBy] = useState("status");
+
+  const { data: tasks = [], refetch: refetchTasks } = useQuery<TaskResponse[]>({
+    queryKey: ["tasks"],
+    queryFn: async () => {
+      const response = await TaskService.getTasks();
+      return response.data;
+    },
+    enabled: !!token,
+  });
+
+  const filteredAndSortedTasks = useMemo(() => {
+    let filteredTasks = tasks;
+    return filteredTasks.sort((a, b) => {
+      if (sortBy === "deadline") {
+        return (
+          new Date(a.deadline || 0).getTime() -
+          new Date(b.deadline || 0).getTime()
+        );
+      } else if (sortBy === "createdAt") {
+        return (
+          new Date(a.createdAt || 0).getTime() -
+          new Date(b.createdAt || 0).getTime()
+        );
+      }
+      return 0;
+    });
+  }, [tasks, sortBy]);
+
   useEffect(() => {
     if (selectedTask) {
       setUpdatedTask({
@@ -90,26 +118,17 @@ export default function Component() {
     return response.data;
   };
 
-  const { data: tasks = [], refetch: refetchTasks } = useQuery<TaskResponse[]>({
-    queryKey: ["tasks"],
-    queryFn: async () => {
-      const response = await TaskService.getTasks();
-      return response.data;
-    },
-    enabled: !!token,
-  });
-
-  const { data } = useQuery({
+  const { data: userData } = useQuery({
     queryKey: ["user"],
     queryFn: fetchUser,
     enabled: !!token,
   });
 
   useEffect(() => {
-    if (data) {
-      setUserInformation(data);
+    if (userData) {
+      setUserInformation(userData);
     }
-  }, [data, setUserInformation]);
+  }, [userData, setUserInformation]);
 
   const handleTaskClick = (task: Task) => {
     setSelectedTask(task);
@@ -146,7 +165,7 @@ export default function Component() {
       newTask.description,
       newTask.priority,
       newTask.deadline?.toISOString().split("T")[0],
-      data.id
+      userData.id
     );
     return response.data;
   };
@@ -157,7 +176,6 @@ export default function Component() {
   };
 
   const updateTask = async (task: Task) => {
-    console.log("task", task.deadline);
     const response = await TaskService.updateTask(
       task.id,
       task.title,
@@ -270,8 +288,80 @@ export default function Component() {
     }
   };
 
+  const renderTasks = () => {
+    return (
+      <div className="flex space-x-4">
+        {renderTaskColumn("todo")}
+        <div className="w-px bg-black self-stretch"></div>
+        {renderTaskColumn("doing")}
+        <div className="w-px bg-black self-stretch"></div>
+        {renderTaskColumn("done")}
+      </div>
+    );
+  };
+
+  const TaskCard = ({ task, index }: { task: Task; index: number }) => (
+    <Draggable key={task.id} draggableId={task.id} index={index}>
+      {(provided) => (
+        <Card
+          ref={provided.innerRef}
+          {...provided.draggableProps}
+          {...provided.dragHandleProps}
+          className={`cursor-pointer ${getCardColor(
+            task.status as "todo" | "doing" | "done"
+          )} relative`}
+          onClick={() => handleTaskClick(task)}
+        >
+          <CardHeader>
+            <CardTitle>{task.title}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-gray-500 mb-2">{task.description}</p>
+            {task.deadline && (
+              <p className="text-sm text-gray-500 mb-2">
+                Deadline: {new Date(task.deadline).toLocaleDateString()}
+              </p>
+            )}
+            <div className="absolute bottom-2 right-2 items-center justify-center">
+              <Badge
+                style={{
+                  backgroundColor:
+                    task.priority == 3
+                      ? "#ff4d4f"
+                      : task.priority == 2
+                      ? "#ffc107"
+                      : "#28a745",
+                  color: "white",
+                }}
+              >
+                {task.priority == 1
+                  ? "Low"
+                  : task.priority == 2
+                  ? "Medium"
+                  : "High"}
+              </Badge>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-2 right-2 h-6 w-6 text-red-600"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeleteTask(task.id);
+              }}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+    </Draggable>
+  );
+
   const renderTaskColumn = (status: "todo" | "doing" | "done") => {
-    const filteredTasks = tasks.filter((task) => task.status === status);
+    const filteredTasks = filteredAndSortedTasks.filter(
+      (task) => task.status === status
+    );
     return (
       <Droppable droppableId={status}>
         {(provided) => (
@@ -285,64 +375,7 @@ export default function Component() {
             </h2>
             <div className="space-y-4">
               {filteredTasks.map((task, index) => (
-                <Draggable key={task.id} draggableId={task.id} index={index}>
-                  {(provided) => (
-                    <Card
-                      ref={provided.innerRef}
-                      {...provided.draggableProps}
-                      {...provided.dragHandleProps}
-                      className={`cursor-pointer ${getCardColor(
-                        task.status as "todo" | "doing" | "done"
-                      )} relative`}
-                      onClick={() => handleTaskClick(task)}
-                    >
-                      <CardHeader>
-                        <CardTitle>{task.title}</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-sm text-gray-500 mb-2">
-                          {task.description}
-                        </p>
-                        {task.deadline && (
-                          <p className="text-sm text-gray-500 mb-2">
-                            Deadline:{" "}
-                            {new Date(task.deadline).toLocaleDateString()}
-                          </p>
-                        )}
-                        <div className="absolute bottom-2 right-2 items-center justify-center">
-                          <Badge
-                            style={{
-                              backgroundColor:
-                                task.priority == 3
-                                  ? "#ff4d4f" // Vermelho
-                                  : task.priority == 2
-                                  ? "#ffc107" // Amarelo
-                                  : "#28a745", // Verde
-                              color: "white", // Definindo a cor do texto como branco para high e low
-                            }}
-                          >
-                            {task.priority == 1
-                              ? "Low"
-                              : task.priority == 2
-                              ? "Medium"
-                              : "High"}
-                          </Badge>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="absolute top-2 right-2 h-6 w-6 text-red-600"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteTask(task.id);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  )}
-                </Draggable>
+                <TaskCard key={task.id} task={task} index={index} />
               ))}
               {provided.placeholder}
             </div>
@@ -370,13 +403,21 @@ export default function Component() {
         >
           Add New Task
         </Button>
-        <div className="flex space-x-4">
-          {renderTaskColumn("todo")}
-          <div className="w-px bg-black self-stretch"></div>
-          {renderTaskColumn("doing")}
-          <div className="w-px bg-black self-stretch"></div>
-          {renderTaskColumn("done")}
+        <div className="flex space-x-4 mb-6">
+          <div className="w-1/2">
+            <Label htmlFor="sort-by">Sort by</Label>
+            <Select onValueChange={setSortBy} defaultValue="deadline">
+              <SelectTrigger id="sort-by">
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="deadline">Deadline</SelectItem>
+                <SelectItem value="createdAt">Created At</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
+        {renderTasks()}
         <Dialog open={!!selectedTask} onOpenChange={closeModal}>
           <DialogContent>
             <DialogHeader>
@@ -409,10 +450,10 @@ export default function Component() {
               <div>
                 <Label htmlFor="priority">Priority</Label>
                 <Select
-                  onValueChange={(value: number) =>
-                    setUpdatedTask({ ...updatedTask, priority: value })
+                  onValueChange={(value) =>
+                    setUpdatedTask({ ...updatedTask, priority: Number(value) })
                   }
-                  value={updatedTask.priority}
+                  value={updatedTask.priority.toString()}
                 >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Change priority" />
@@ -451,7 +492,7 @@ export default function Component() {
               <div>
                 <Label htmlFor="status">Status</Label>
                 <Select
-                  onValueChange={(value: string) =>
+                  onValueChange={(value) =>
                     setUpdatedTask({ ...updatedTask, status: value })
                   }
                   value={updatedTask.status}
@@ -501,10 +542,10 @@ export default function Component() {
               <div>
                 <Label htmlFor="priority">Priority</Label>
                 <Select
-                  onValueChange={(value: number) =>
-                    setNewTask({ ...newTask, priority: value })
+                  onValueChange={(value) =>
+                    setNewTask({ ...newTask, priority: Number(value) })
                   }
-                  value={newTask.priority}
+                  value={newTask.priority.toString()}
                 >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Change priority" />
