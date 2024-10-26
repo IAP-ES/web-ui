@@ -13,6 +13,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -23,7 +24,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Trash2 } from "lucide-react";
+import { Trash2, Calendar } from "lucide-react";
 import { TaskResponse } from "@/lib/types";
 import { TaskService } from "@/services/Client/TaskService";
 import {
@@ -33,17 +34,23 @@ import {
   DropResult,
 } from "react-beautiful-dnd";
 import { toast } from "@/hooks/use-toast";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
 type Task = {
   id: string;
   title: string;
   description: string;
   status: string;
+  priority: string;
+  deadline: Date | null;
 };
 
 type NewTask = {
   title: string;
   description: string;
+  priority: string;
+  deadline: Date | null;
 };
 
 export default function Component() {
@@ -54,21 +61,25 @@ export default function Component() {
   const [newTask, setNewTask] = useState<NewTask>({
     title: "",
     description: "",
+    priority: "",
+    deadline: null,
   });
   const [updatedTask, setUpdatedTask] = useState<Task>({
     id: "",
     title: "",
     description: "",
     status: "",
+    priority: "",
+    deadline: null,
   });
 
   useEffect(() => {
     if (selectedTask) {
       setUpdatedTask({
-        id: selectedTask.id,
-        title: selectedTask.title,
-        description: selectedTask.description,
-        status: selectedTask.status,
+        ...selectedTask,
+        deadline: selectedTask.deadline
+          ? new Date(selectedTask.deadline)
+          : null,
       });
     }
   }, [selectedTask]);
@@ -110,6 +121,8 @@ export default function Component() {
       title: "",
       description: "",
       status: "",
+      priority: "",
+      deadline: null,
     });
   };
 
@@ -130,6 +143,8 @@ export default function Component() {
     const response = await TaskService.createTask(
       newTask.title,
       newTask.description,
+      newTask.priority,
+      newTask.deadline?.toISOString().split("T")[0],
       data.id
     );
     return response.data;
@@ -145,16 +160,24 @@ export default function Component() {
       task.id,
       task.title,
       task.description,
-      task.status
+      task.status,
+      task.priority,
+      task.deadline?.toISOString().split("T")[0]
     );
     return response.data;
   };
 
   const addTaskMutation = useMutation({
     mutationFn: addTask,
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries(["tasks"]);
       setIsAddTaskModalOpen(false);
+      setNewTask({
+        title: "",
+        description: "",
+        priority: "",
+        deadline: null,
+      });
     },
     onError: (error) => {
       console.error("Error adding task:", error);
@@ -168,7 +191,7 @@ export default function Component() {
 
   const deleteTaskMutation = useMutation({
     mutationFn: deleteTask,
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries(["tasks"]);
     },
     onError: (error) => {
@@ -183,7 +206,7 @@ export default function Component() {
 
   const updateTaskMutation = useMutation({
     mutationFn: updateTask,
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries(["tasks"]);
       closeModal();
     },
@@ -194,18 +217,19 @@ export default function Component() {
         description: "Failed to update task. Please try again.",
         variant: "destructive",
       });
+      queryClient.invalidateQueries(["tasks"]);
     },
   });
 
-  const handleAddTask = async () => {
+  const handleAddTask = () => {
     addTaskMutation.mutate();
   };
 
-  const handleDeleteTask = async (id: string) => {
+  const handleDeleteTask = (id: string) => {
     deleteTaskMutation.mutate(id);
   };
 
-  const handleUpdateTask = async () => {
+  const handleUpdateTask = () => {
     updateTaskMutation.mutate(updatedTask);
   };
 
@@ -225,7 +249,6 @@ export default function Component() {
 
     const newStatus = destination.droppableId as "todo" | "doing" | "done";
 
-    // Optimistic update
     queryClient.setQueryData(["tasks"], (oldData: Task[] | undefined) => {
       if (!oldData) return oldData;
       return oldData.map((task) =>
@@ -233,13 +256,11 @@ export default function Component() {
       );
     });
 
-    // Update the task status without closing the modal if it's open
     const taskToUpdate = tasks.find((task) => task.id === draggableId);
     if (taskToUpdate) {
       const updatedTaskData = { ...taskToUpdate, status: newStatus };
       updateTaskMutation.mutate(updatedTaskData);
 
-      // If the modal is open for this task, update the local state
       if (selectedTask && selectedTask.id === draggableId) {
         setUpdatedTask(updatedTaskData);
       }
@@ -279,6 +300,27 @@ export default function Component() {
                         <p className="text-sm text-gray-500 mb-2">
                           {task.description}
                         </p>
+                        {task.deadline && (
+                          <p className="text-sm text-gray-500 mb-2">
+                            Deadline:{" "}
+                            {new Date(task.deadline).toLocaleDateString()}
+                          </p>
+                        )}
+                        <div className="absolute bottom-2 right-2 items-center justify-center">
+                          <Badge
+                            style={{
+                              backgroundColor:
+                                task.priority === "high"
+                                  ? "#ff4d4f" // Vermelho
+                                  : task.priority === "mid"
+                                  ? "#ffc107" // Amarelo
+                                  : "#28a745", // Verde
+                              color: "white", // Definindo a cor do texto como branco para high e low
+                            }}
+                          >
+                            {task.priority}
+                          </Badge>
+                        </div>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -310,7 +352,12 @@ export default function Component() {
         <Button
           onClick={() => {
             setIsAddTaskModalOpen(true);
-            setNewTask({ title: "", description: "" });
+            setNewTask({
+              title: "",
+              description: "",
+              priority: "",
+              deadline: null,
+            });
           }}
           className="mb-6"
         >
@@ -351,6 +398,48 @@ export default function Component() {
                     })
                   }
                 />
+              </div>
+              <div>
+                <Label htmlFor="priority">Priority</Label>
+                <Select
+                  onValueChange={(value: string) =>
+                    setUpdatedTask({ ...updatedTask, priority: value })
+                  }
+                  value={updatedTask.priority}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Change priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="mid">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="deadline">Deadline</Label>
+                <div className="flex items-center">
+                  <DatePicker
+                    selected={updatedTask.deadline}
+                    onChange={(date: Date | null) =>
+                      setUpdatedTask({ ...updatedTask, deadline: date })
+                    }
+                    customInput={<Input />}
+                    dateFormat="MMMM d, yyyy"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="ml-2"
+                    onClick={() =>
+                      setUpdatedTask({ ...updatedTask, deadline: null })
+                    }
+                  >
+                    <Calendar className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
               <div>
                 <Label htmlFor="status">Status</Label>
@@ -401,6 +490,46 @@ export default function Component() {
                     setNewTask({ ...newTask, description: e.target.value })
                   }
                 />
+              </div>
+              <div>
+                <Label htmlFor="priority">Priority</Label>
+                <Select
+                  onValueChange={(value: string) =>
+                    setNewTask({ ...newTask, priority: value })
+                  }
+                  value={newTask.priority}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Change priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="mid">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="deadline">Deadline</Label>
+                <div className="flex items-center">
+                  <DatePicker
+                    selected={newTask.deadline}
+                    onChange={(date: Date | null) =>
+                      setNewTask({ ...newTask, deadline: date })
+                    }
+                    customInput={<Input />}
+                    dateFormat="MMMM d, yyyy"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="ml-2"
+                    onClick={() => setNewTask({ ...newTask, deadline: null })}
+                  >
+                    <Calendar className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
             <DialogFooter>
