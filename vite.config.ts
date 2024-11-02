@@ -14,7 +14,4 @@ export default defineConfig({
   server: {
     port: 80,
   },
-  optimizeDeps: {
-    disabled: true, // Disable dependency optimization
-  },
 });
