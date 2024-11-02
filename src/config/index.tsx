@@ -6,7 +6,7 @@ const scheme = {
 };
 
 HOST = "10.10.11.238";
-BASE_URL = `${scheme.HTTPS}${HOST}`;
+BASE_URL = `${scheme.HTTP}${HOST}`;
 
 const config = {
   PRODUCTION: import.meta.env.PROD,
