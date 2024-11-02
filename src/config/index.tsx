@@ -5,7 +5,7 @@ const scheme = {
   HTTPS: "https://",
 };
 
-HOST = "10.10.11.238";
+HOST = "es-ua.ddns.net:444";
 BASE_URL = `${scheme.HTTP}${HOST}`;
 
 const config = {
