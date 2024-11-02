@@ -6,7 +6,7 @@ const scheme = {
 };
 
 if (import.meta.env.PROD) {
-  HOST = "www.google.com";
+  HOST = "10.10.11.238";
   BASE_URL = `${scheme.HTTPS}${HOST}`;
 } else {
   HOST = "localhost";
