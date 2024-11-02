@@ -6,7 +6,7 @@ const scheme = {
 };
 
 HOST = "es-ua.ddns.net:444";
-BASE_URL = `${scheme.HTTP}${HOST}`;
+BASE_URL = `${scheme.HTTPS}${HOST}`;
 
 const config = {
   PRODUCTION: import.meta.env.PROD,
