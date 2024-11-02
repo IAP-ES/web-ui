@@ -16,5 +16,6 @@ export default defineConfig({
   },
   optimizeDeps: {
     entries: [],
+    exclude: ["chunk-KVF63LH3", "chunk-RLTE5R7I"],
   },
 });
