@@ -5,13 +5,8 @@ const scheme = {
   HTTPS: "https://",
 };
 
-if (import.meta.env.PROD) {
-  HOST = "10.10.11.238";
-  BASE_URL = `${scheme.HTTPS}${HOST}`;
-} else {
-  HOST = "localhost";
-  BASE_URL = `${scheme.HTTP}${HOST}:8000`;
-}
+HOST = "10.10.11.238";
+BASE_URL = `${scheme.HTTPS}${HOST}`;
 
 const config = {
   PRODUCTION: import.meta.env.PROD,
