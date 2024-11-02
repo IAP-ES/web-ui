@@ -42,7 +42,7 @@ export default function LandingPage() {
             Welcome to the To-Do List App
           </h1>
           <div className="space-x-4 my-10">
-            <Link to="https://703671939478-iap-es.auth.eu-north-1.amazoncognito.com/login?client_id=2skfogn5co7ahodrti6ndqf7kt&response_type=code&scope=aws.cognito.signin.user.admin+email+openid+phone&redirect_uri=http://localhost:8080/oauth2/idpresponse">
+            <Link to="https://703671939478-iap-es.auth.eu-north-1.amazoncognito.com/login?client_id=2skfogn5co7ahodrti6ndqf7kt&response_type=code&scope=aws.cognito.signin.user.admin+email+openid+phone&redirect_uri=https%3A%2F%2Fes-ua.ddns.net%2Foauth2%2Fidpresponse">
               <Button size="lg">Get Started</Button>
             </Link>
           </div>
