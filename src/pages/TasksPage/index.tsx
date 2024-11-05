@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUserStore } from "@/stores/useUserStore";
 import { UserService } from "@/services/Client/UserService";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
@@ -44,6 +44,7 @@ type Task = {
   status: string;
   priority: number;
   deadline: Date | null;
+  created_at: string;
 };
 
 type NewTask = {
@@ -69,11 +70,14 @@ export default function Component() {
     title: "",
     description: "",
     status: "",
-    priority: 0,
+    priority: 1,
     deadline: null,
+    created_at: "",
   });
 
-  const [sortBy, setSortBy] = useState("status");
+  const [sortBy, setSortBy] = useState<"deadline" | "createdAt">("deadline");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [priorityFilter, setPriorityFilter] = useState("all");
 
   const { data: tasks = [], refetch: refetchTasks } = useQuery<TaskResponse[]>({
     queryKey: ["tasks"],
@@ -84,23 +88,34 @@ export default function Component() {
     enabled: !!token,
   });
 
-  const filteredAndSortedTasks = useMemo(() => {
-    let filteredTasks = tasks;
-    return filteredTasks.sort((a, b) => {
+  const sortTasks = useCallback(
+    (a: Task, b: Task) => {
       if (sortBy === "deadline") {
-        return (
-          new Date(a.deadline || 0).getTime() -
-          new Date(b.deadline || 0).getTime()
-        );
+        const aDate = a.deadline ? new Date(a.deadline).getTime() : Infinity;
+        const bDate = b.deadline ? new Date(b.deadline).getTime() : Infinity;
+        return sortOrder === "asc" ? aDate - bDate : bDate - aDate;
       } else if (sortBy === "createdAt") {
-        return (
-          new Date(a.createdAt || 0).getTime() -
-          new Date(b.createdAt || 0).getTime()
+        console.log(
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
         );
+        return sortOrder === "asc"
+          ? new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          : new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       }
       return 0;
-    });
-  }, [tasks, sortBy]);
+    },
+    [sortBy, sortOrder]
+  );
+
+  const filteredAndSortedTasks = useMemo(() => {
+    let filteredTasks = tasks;
+    if (priorityFilter !== "all") {
+      filteredTasks = filteredTasks.filter(
+        (task) => task.priority === Number(priorityFilter)
+      );
+    }
+    return filteredTasks.sort(sortTasks);
+  }, [tasks, sortTasks, priorityFilter]);
 
   useEffect(() => {
     if (selectedTask) {
@@ -141,8 +156,9 @@ export default function Component() {
       title: "",
       description: "",
       status: "",
-      priority: 0,
+      priority: 1,
       deadline: null,
+      created_at: "",
     });
   };
 
@@ -160,6 +176,14 @@ export default function Component() {
   };
 
   const addTask = async () => {
+    if (!newTask.title || newTask.priority === 0) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return null;
+    }
     const response = await TaskService.createTask(
       newTask.title,
       newTask.description,
@@ -176,6 +200,14 @@ export default function Component() {
   };
 
   const updateTask = async (task: Task) => {
+    if (!task.title || task.priority === 0) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return null;
+    }
     const response = await TaskService.updateTask(
       task.id,
       task.title,
@@ -189,15 +221,17 @@ export default function Component() {
 
   const addTaskMutation = useMutation({
     mutationFn: addTask,
-    onSuccess: () => {
-      queryClient.invalidateQueries(["tasks"]);
-      setIsAddTaskModalOpen(false);
-      setNewTask({
-        title: "",
-        description: "",
-        priority: 0,
-        deadline: null,
-      });
+    onSuccess: (data) => {
+      if (data) {
+        queryClient.invalidateQueries(["tasks"]);
+        setIsAddTaskModalOpen(false);
+        setNewTask({
+          title: "",
+          description: "",
+          priority: 0,
+          deadline: null,
+        });
+      }
     },
     onError: (error) => {
       console.error("Error adding task:", error);
@@ -226,9 +260,11 @@ export default function Component() {
 
   const updateTaskMutation = useMutation({
     mutationFn: updateTask,
-    onSuccess: () => {
-      queryClient.invalidateQueries(["tasks"]);
-      closeModal();
+    onSuccess: (data) => {
+      if (data) {
+        queryClient.invalidateQueries(["tasks"]);
+        closeModal();
+      }
     },
     onError: (error) => {
       console.error("Error updating task:", error);
@@ -237,7 +273,6 @@ export default function Component() {
         description: "Failed to update task. Please try again.",
         variant: "destructive",
       });
-      queryClient.invalidateQueries(["tasks"]);
     },
   });
 
@@ -404,15 +439,51 @@ export default function Component() {
           Add New Task
         </Button>
         <div className="flex space-x-4 mb-6">
-          <div className="w-1/2">
+          <div className="w-1/3">
             <Label htmlFor="sort-by">Sort by</Label>
-            <Select onValueChange={setSortBy} defaultValue="deadline">
+            <Select
+              onValueChange={(value) => {
+                setSortBy(value as "deadline" | "createdAt");
+                setSortOrder("asc");
+              }}
+              defaultValue="deadline"
+            >
               <SelectTrigger id="sort-by">
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="deadline">Deadline</SelectItem>
                 <SelectItem value="createdAt">Created At</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="w-1/3">
+            <Label htmlFor="sort-order">Sort Order</Label>
+            <Select
+              onValueChange={(value) => setSortOrder(value as "asc" | "desc")}
+              defaultValue="asc"
+            >
+              <SelectTrigger id="sort-order">
+                <SelectValue placeholder="Sort Order" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="asc">Ascending</SelectItem>
+
+                <SelectItem value="desc">Descending</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="w-1/3">
+            <Label htmlFor="filter-priority">Filter by Priority</Label>
+            <Select onValueChange={setPriorityFilter} defaultValue="all">
+              <SelectTrigger id="filter-priority">
+                <SelectValue placeholder="Filter by Priority" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Priorities</SelectItem>
+                <SelectItem value="1">Low</SelectItem>
+                <SelectItem value="2">Medium</SelectItem>
+                <SelectItem value="3">High</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -425,15 +496,17 @@ export default function Component() {
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <Label htmlFor="title">Title</Label>
+                <Label htmlFor="title">Title *</Label>
                 <Input
                   id="title"
                   value={updatedTask.title}
                   onChange={(e) =>
                     setUpdatedTask({ ...updatedTask, title: e.target.value })
                   }
+                  required
                 />
               </div>
+
               <div>
                 <Label htmlFor="description">Description</Label>
                 <Textarea
@@ -448,12 +521,13 @@ export default function Component() {
                 />
               </div>
               <div>
-                <Label htmlFor="priority">Priority</Label>
+                <Label htmlFor="priority">Priority *</Label>
                 <Select
                   onValueChange={(value) =>
                     setUpdatedTask({ ...updatedTask, priority: Number(value) })
                   }
                   value={updatedTask.priority.toString()}
+                  required
                 >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Change priority" />
@@ -490,12 +564,13 @@ export default function Component() {
                 </div>
               </div>
               <div>
-                <Label htmlFor="status">Status</Label>
+                <Label htmlFor="status">Status *</Label>
                 <Select
                   onValueChange={(value) =>
                     setUpdatedTask({ ...updatedTask, status: value })
                   }
                   value={updatedTask.status}
+                  required
                 >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Change status" />
@@ -520,13 +595,14 @@ export default function Component() {
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <Label htmlFor="title">Title</Label>
+                <Label htmlFor="title">Title *</Label>
                 <Input
                   id="title"
                   value={newTask.title}
                   onChange={(e) =>
                     setNewTask({ ...newTask, title: e.target.value })
                   }
+                  required
                 />
               </div>
               <div>
@@ -540,15 +616,16 @@ export default function Component() {
                 />
               </div>
               <div>
-                <Label htmlFor="priority">Priority</Label>
+                <Label htmlFor="priority">Priority *</Label>
                 <Select
                   onValueChange={(value) =>
                     setNewTask({ ...newTask, priority: Number(value) })
                   }
                   value={newTask.priority.toString()}
+                  required
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Change priority" />
+                    <SelectValue placeholder="Select priority" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="1">Low</SelectItem>
