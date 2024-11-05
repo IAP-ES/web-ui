@@ -10,8 +10,6 @@ import { Link } from "react-router-dom";
 export default function LandingPage() {
   const { token, setUserInformation } = useUserStore();
 
-  console.log("Token acessado na LandingPage:", token);
-
   const fetchUser = async () => {
     const response = await UserService.getUser();
     return response.data;
