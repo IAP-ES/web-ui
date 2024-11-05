@@ -18,6 +18,7 @@ export default function RedirectPage() {
 
   const signin = async (code: string) => {
     const response = (await UserService.signin(code)).data;
+    localStorage.setItem("token", response.token.token);
     return response;
   };
 
