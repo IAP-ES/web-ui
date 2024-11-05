@@ -21,6 +21,7 @@ export default function Navbar() {
     mutationFn: logout,
     onSuccess: (data) => {
       console.log(data);
+      localStorage.removeItem("token");
       zustandLogout(navigate);
       window.location.reload();
     },
