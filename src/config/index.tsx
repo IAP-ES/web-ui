@@ -5,7 +5,7 @@ const scheme = {
   HTTPS: "https://",
 };
 
-HOST = "alb-1729041806.eu-north-1.elb.amazonaws.com:444";
+HOST = "alb-1912597159.eu-north-1.elb.amazonaws.com:444";
 BASE_URL = `${scheme.HTTPS}${HOST}`;
 
 const config = {
