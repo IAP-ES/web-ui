@@ -43,7 +43,7 @@ type Task = {
   description: string;
   status: string;
   priority: number;
-  deadline: Date | null;
+  deadline: string | null; // Change this to string | null
   created_at: string;
   category: string;
 };
@@ -219,7 +219,7 @@ export default function Component() {
       task.category,
       task.status,
       task.priority,
-      task.deadline ? task.deadline.toISOString().split("T")[0] : null
+      task.deadline // Pass the deadline as is, it's already a string or null
     );
     return response.data;
   };
@@ -266,12 +266,6 @@ export default function Component() {
 
   const updateTaskMutation = useMutation({
     mutationFn: updateTask,
-    onSuccess: (data) => {
-      if (data) {
-        queryClient.invalidateQueries(["tasks"]);
-        closeModal();
-      }
-    },
     onError: (error) => {
       console.error("Error updating task:", error);
       toast({
@@ -291,7 +285,32 @@ export default function Component() {
   };
 
   const handleUpdateTask = () => {
-    updateTaskMutation.mutate(updatedTask);
+    // Optimistically update the UI
+    queryClient.setQueryData<TaskResponse[]>(["tasks"], (oldTasks) => {
+      return oldTasks?.map((task) =>
+        task.id === updatedTask.id ? updatedTask : task
+      );
+    });
+
+    // Close the modal immediately
+    closeModal();
+
+    // Update the task on the server
+    updateTaskMutation.mutate(updatedTask, {
+      onError: () => {
+        // Revert the optimistic update if there's an error
+        queryClient.setQueryData<TaskResponse[]>(["tasks"], (oldTasks) => {
+          return oldTasks?.map((task) =>
+            task.id === updatedTask.id ? selectedTask! : task
+          );
+        });
+        toast({
+          title: "Error",
+          description: "Failed to update task. Please try again.",
+          variant: "destructive",
+        });
+      },
+    });
   };
 
   const onDragEnd = (result: DropResult) => {
@@ -313,7 +332,30 @@ export default function Component() {
     const taskToUpdate = tasks.find((task) => task.id === draggableId);
     if (taskToUpdate) {
       const updatedTaskData = { ...taskToUpdate, status: newStatus };
-      updateTaskMutation.mutate(updatedTaskData);
+
+      // Optimistically update the UI
+      queryClient.setQueryData<TaskResponse[]>(["tasks"], (oldTasks) => {
+        return oldTasks?.map((task) =>
+          task.id === updatedTaskData.id ? updatedTaskData : task
+        );
+      });
+
+      // Update the task on the server
+      updateTaskMutation.mutate(updatedTaskData, {
+        onError: () => {
+          // Revert the optimistic update if there's an error
+          queryClient.setQueryData<TaskResponse[]>(["tasks"], (oldTasks) => {
+            return oldTasks?.map((task) =>
+              task.id === taskToUpdate.id ? taskToUpdate : task
+            );
+          });
+          toast({
+            title: "Error",
+            description: "Failed to update task status. Please try again.",
+            variant: "destructive",
+          });
+        },
+      });
     }
   };
 
@@ -564,12 +606,21 @@ export default function Component() {
                 <Label htmlFor="deadline">Deadline</Label>
                 <div className="flex items-center">
                   <DatePicker
-                    selected={updatedTask.deadline}
+                    selected={
+                      updatedTask.deadline
+                        ? new Date(updatedTask.deadline)
+                        : null
+                    }
                     onChange={(date: Date | null) =>
-                      setUpdatedTask({ ...updatedTask, deadline: date })
+                      setUpdatedTask({
+                        ...updatedTask,
+                        deadline: date
+                          ? date.toISOString().split("T")[0]
+                          : null,
+                      })
                     }
                     customInput={<Input />}
-                    dateFormat="MMMM d, yyyy"
+                    dateFormat="yyyy-MM-dd"
                   />
                   <Button
                     type="button"
