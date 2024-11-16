@@ -12,6 +12,6 @@ export default defineConfig({
   },
   //trocar depois
   server: {
-    port: 3000,
+    port: 80,
   },
 });
