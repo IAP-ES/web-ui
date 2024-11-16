@@ -45,6 +45,7 @@ type Task = {
   priority: number;
   deadline: Date | null;
   created_at: string;
+  category: string;
 };
 
 type NewTask = {
@@ -52,6 +53,7 @@ type NewTask = {
   description: string;
   priority: number;
   deadline: Date | null;
+  category: string;
 };
 
 export default function Component() {
@@ -62,8 +64,9 @@ export default function Component() {
   const [newTask, setNewTask] = useState<NewTask>({
     title: "",
     description: "",
-    priority: 0,
+    priority: 1,
     deadline: null,
+    category: "",
   });
   const [updatedTask, setUpdatedTask] = useState<Task>({
     id: "",
@@ -73,11 +76,13 @@ export default function Component() {
     priority: 1,
     deadline: null,
     created_at: "",
+    category: "",
   });
 
   const [sortBy, setSortBy] = useState<"deadline" | "createdAt">("deadline");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [priorityFilter, setPriorityFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
 
   const { data: tasks = [], refetch: refetchTasks } = useQuery<TaskResponse[]>({
     queryKey: ["tasks"],
@@ -95,9 +100,6 @@ export default function Component() {
         const bDate = b.deadline ? new Date(b.deadline).getTime() : Infinity;
         return sortOrder === "asc" ? aDate - bDate : bDate - aDate;
       } else if (sortBy === "createdAt") {
-        console.log(
-          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-        );
         return sortOrder === "asc"
           ? new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
           : new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
@@ -114,19 +116,18 @@ export default function Component() {
         (task) => task.priority === Number(priorityFilter)
       );
     }
-    return filteredTasks.sort(sortTasks);
-  }, [tasks, sortTasks, priorityFilter]);
-
-  useEffect(() => {
-    if (selectedTask) {
-      setUpdatedTask({
-        ...selectedTask,
-        deadline: selectedTask.deadline
-          ? new Date(selectedTask.deadline)
-          : null,
-      });
+    if (categoryFilter !== "all") {
+      filteredTasks = filteredTasks.filter(
+        (task) => task.category === categoryFilter
+      );
     }
-  }, [selectedTask]);
+    return filteredTasks.sort(sortTasks);
+  }, [tasks, sortTasks, priorityFilter, categoryFilter]);
+
+  const uniqueCategories = useMemo(() => {
+    const categories = new Set(tasks.map((task) => task.category));
+    return Array.from(categories);
+  }, [tasks]);
 
   const fetchUser = async () => {
     const response = await UserService.getUser();
@@ -147,6 +148,7 @@ export default function Component() {
 
   const handleTaskClick = (task: Task) => {
     setSelectedTask(task);
+    setUpdatedTask(task);
   };
 
   const closeModal = () => {
@@ -159,6 +161,7 @@ export default function Component() {
       priority: 1,
       deadline: null,
       created_at: "",
+      category: "",
     });
   };
 
@@ -176,7 +179,7 @@ export default function Component() {
   };
 
   const addTask = async () => {
-    if (!newTask.title || newTask.priority === 0) {
+    if (!newTask.title || newTask.priority === 0 || !newTask.category) {
       toast({
         title: "Error",
         description: "Please fill in all required fields.",
@@ -187,8 +190,9 @@ export default function Component() {
     const response = await TaskService.createTask(
       newTask.title,
       newTask.description,
+      newTask.category,
       newTask.priority,
-      newTask.deadline?.toISOString().split("T")[0],
+      newTask.deadline?.toISOString().split("T")[0] || null,
       userData.id
     );
     return response.data;
@@ -200,7 +204,7 @@ export default function Component() {
   };
 
   const updateTask = async (task: Task) => {
-    if (!task.title || task.priority === 0) {
+    if (!task.title || task.priority === 0 || !task.category) {
       toast({
         title: "Error",
         description: "Please fill in all required fields.",
@@ -212,6 +216,7 @@ export default function Component() {
       task.id,
       task.title,
       task.description,
+      task.category,
       task.status,
       task.priority,
       task.deadline ? task.deadline.toISOString().split("T")[0] : null
@@ -228,8 +233,9 @@ export default function Component() {
         setNewTask({
           title: "",
           description: "",
-          priority: 0,
+          priority: 1,
           deadline: null,
+          category: "",
         });
       }
     },
@@ -304,22 +310,10 @@ export default function Component() {
 
     const newStatus = destination.droppableId as "todo" | "doing" | "done";
 
-    queryClient.setQueryData(["tasks"], (oldData: Task[] | undefined) => {
-      if (!oldData) return oldData;
-      return oldData.map((task) =>
-        task.id === draggableId ? { ...task, status: newStatus } : task
-      );
-    });
-
     const taskToUpdate = tasks.find((task) => task.id === draggableId);
     if (taskToUpdate) {
       const updatedTaskData = { ...taskToUpdate, status: newStatus };
-      updateTaskMutation.mutate({
-        ...updatedTaskData,
-        deadline: updatedTaskData.deadline
-          ? new Date(updatedTaskData.deadline)
-          : null,
-      });
+      updateTaskMutation.mutate(updatedTaskData);
     }
   };
 
@@ -357,21 +351,22 @@ export default function Component() {
                 Deadline: {new Date(task.deadline).toLocaleDateString()}
               </p>
             )}
-            <div className="absolute bottom-2 right-2 items-center justify-center">
+            <div className="flex justify-between items-center mt-2">
+              <Badge>{task.category}</Badge>
               <Badge
                 style={{
                   backgroundColor:
-                    task.priority == 3
+                    task.priority === 3
                       ? "#ff4d4f"
-                      : task.priority == 2
+                      : task.priority === 2
                       ? "#ffc107"
                       : "#28a745",
                   color: "white",
                 }}
               >
-                {task.priority == 1
+                {task.priority === 1
                   ? "Low"
-                  : task.priority == 2
+                  : task.priority === 2
                   ? "Medium"
                   : "High"}
               </Badge>
@@ -430,8 +425,9 @@ export default function Component() {
             setNewTask({
               title: "",
               description: "",
-              priority: 0,
+              priority: 1,
               deadline: null,
+              category: "",
             });
           }}
           className="mb-6"
@@ -439,7 +435,7 @@ export default function Component() {
           Add New Task
         </Button>
         <div className="flex space-x-4 mb-6">
-          <div className="w-1/3">
+          <div className="w-1/4">
             <Label htmlFor="sort-by">Sort by</Label>
             <Select
               onValueChange={(value) => {
@@ -457,7 +453,7 @@ export default function Component() {
               </SelectContent>
             </Select>
           </div>
-          <div className="w-1/3">
+          <div className="w-1/4">
             <Label htmlFor="sort-order">Sort Order</Label>
             <Select
               onValueChange={(value) => setSortOrder(value as "asc" | "desc")}
@@ -468,12 +464,11 @@ export default function Component() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="asc">Ascending</SelectItem>
-
                 <SelectItem value="desc">Descending</SelectItem>
               </SelectContent>
             </Select>
           </div>
-          <div className="w-1/3">
+          <div className="w-1/4">
             <Label htmlFor="filter-priority">Filter by Priority</Label>
             <Select onValueChange={setPriorityFilter} defaultValue="all">
               <SelectTrigger id="filter-priority">
@@ -484,6 +479,22 @@ export default function Component() {
                 <SelectItem value="1">Low</SelectItem>
                 <SelectItem value="2">Medium</SelectItem>
                 <SelectItem value="3">High</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="w-1/4">
+            <Label htmlFor="filter-category">Filter by Category</Label>
+            <Select onValueChange={setCategoryFilter} defaultValue="all">
+              <SelectTrigger id="filter-category">
+                <SelectValue placeholder="Filter by Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {uniqueCategories.map((category) => (
+                  <SelectItem key={category} value={category}>
+                    {category}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -506,7 +517,6 @@ export default function Component() {
                   required
                 />
               </div>
-
               <div>
                 <Label htmlFor="description">Description</Label>
                 <Textarea
@@ -518,6 +528,17 @@ export default function Component() {
                       description: e.target.value,
                     })
                   }
+                />
+              </div>
+              <div>
+                <Label htmlFor="category">Category *</Label>
+                <Input
+                  id="category"
+                  value={updatedTask.category}
+                  onChange={(e) =>
+                    setUpdatedTask({ ...updatedTask, category: e.target.value })
+                  }
+                  required
                 />
               </div>
               <div>
@@ -613,6 +634,17 @@ export default function Component() {
                   onChange={(e) =>
                     setNewTask({ ...newTask, description: e.target.value })
                   }
+                />
+              </div>
+              <div>
+                <Label htmlFor="category">Category *</Label>
+                <Input
+                  id="category"
+                  value={newTask.category}
+                  onChange={(e) =>
+                    setNewTask({ ...newTask, category: e.target.value })
+                  }
+                  required
                 />
               </div>
               <div>
